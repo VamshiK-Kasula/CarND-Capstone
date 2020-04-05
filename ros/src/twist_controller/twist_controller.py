@@ -1,11 +1,11 @@
 import rospy
+
 from lowpass import LowPassFilter
 from pid import PID
 from yaw_controller import YawController
 
-
 GAS_DENSITY = 2.858
-ONE_MPH = 0.44704
+LOGGING_THROTTLE_FACTOR = 3  # Only log after this many seconds
 MAX_BRAKE = 400.0
 
 
@@ -19,7 +19,7 @@ class Controller(object):
         ki = 0.1
         kd = 0.0
         mn = 0.0  # Minimum throttle value
-        mx = 0.2  # Maximum throttle value
+        mx = 0.4  # Maximum throttle value
         self.throttle_controller = PID(kp, ki, kd, mn, mx)
 
         tau = 0.5  # 1/(2pi*tau) = cutoff frequency
@@ -34,9 +34,10 @@ class Controller(object):
         self.wheel_radius = wheel_radius
 
         self.last_time = rospy.get_time()
+        self.log_time = rospy.get_time()
 
     def control(self, current_vel, dbw_enabled, linear_vel, angular_vel):
-        # Return throttle, brake, steer 
+        # Return throttle, brake, steer
         if not dbw_enabled:
             self.throttle_controller.reset()
             return 0.0, 0.0, 0.0
@@ -58,10 +59,16 @@ class Controller(object):
         if linear_vel == 0.0 and current_vel < 0.1:
             throttle = 0.0
             brake = MAX_BRAKE  # N*m - to hold the car in place if we are stopped at a light. Acceleration ~ 1m/s^2
-        
         elif throttle < 0.1 and vel_error < 0:
             throttle = 0.0
             decel = max(vel_error, self.decel_limit)
             brake = min(MAX_BRAKE, (abs(decel) * self.vehicle_mass * self.wheel_radius))  # Torque N*m
+
+        if (current_time - self.log_time) > LOGGING_THROTTLE_FACTOR:
+            self.log_time = current_time
+            rospy.logwarn("POSE: current_vel={:.2f}, linear_vel={:.2f}, vel_error={:.2f}".format(current_vel,
+                                                                                                 linear_vel,
+                                                                                                 vel_error))
+            rospy.logwarn("POSE: throttle={:.2f}, brake={:.2f}, steering={:.2f}".format(throttle, brake, steering))
 
         return throttle, brake, steering

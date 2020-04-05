@@ -1,7 +1,13 @@
+import os
+
+import cv2
+import numpy as np
+import rospy
+import tensorflow as tf
 from styx_msgs.msg import TrafficLight
 
 class TLClassifier(object):
-    def __init__(self):
+    def __init__(self, model_file):
         self.current_light = TrafficLight.UNKNOWN
 
         cwd = os.path.dirname(os.path.realpath(__file__))
@@ -49,8 +55,8 @@ class TLClassifier(object):
             int: ID of traffic light color (specified in styx_msgs/TrafficLight)
 
         """
-        #TODO implement light color prediction
-                image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        # TODO implement light color prediction
+        image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         (im_width, im_height, _) = image_rgb.shape
         image_np = np.expand_dims(image_rgb, axis=0)
 
